@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>P5.js Globe with High-Quality Rendering</title>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.js"></script>
+  
+  <!-- Add Choices.js CSS and JavaScript -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <!-- Add Apple San Francisco font -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600&display=swap">
+
+  <!-- Add Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+  <style>
+    #country-select-container {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 200px;
+      z-index: 1000;
+    }
+    /* Apply Apple San Francisco font to the select menu */
+    .choices {
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    }
+    #service-buttons-container {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      z-index: 1000;
+    }
+    .service-button {
+      margin: 5px;
+      padding: 8px 15px;  /* Increased padding for larger buttons */
+      border: none;
+      border-radius: 20px;  /* Increased border-radius for rounder buttons */
+      cursor: pointer;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: 18px;  /* Increased font size */
+      color: white;
+      text-shadow: 0 0 2px rgba(0,0,0,0.5);
+      transition: all 0.3s ease;  /* Smooth transition for visual changes */
+    }
+    .service-button.active {
+      box-shadow: 0 0 0 3px white, 0 0 10px rgba(255,255,255,0.8);  /* Increased white outline and added glow */
+      transform: scale(1.1);  /* Slightly enlarge the button when active */
+    }
+    #round-display {
+      position: absolute;
+      top: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: 18px;
+      color: white;
+      text-shadow: 0 0 4px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    #control-buttons {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      z-index: 1000;
+    }
+    .control-button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 25px;
+      background-color: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .control-button:hover {
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+    #leaderboard {
+      position: absolute;
+      top: 70px;
+      left: 10px;
+      width: 200px;
+      height: 390px; /* Adjusted to accommodate 10 items + title */
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 10px;
+      color: white;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      z-index: 1000;
+      backdrop-filter: blur(5px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .leaderboard-item {
+      display: flex;
+      align-items: center;
+      height: 35px;
+      padding: 0 5px;
+      border-radius: 5px;
+      transition: all 0.5s ease;
+      background-color: rgba(255, 255, 255, 0.1);
+      position: absolute;
+      width: calc(100% - 20px);
+      left: 10px;
+    }
+
+    .leaderboard-rank {
+      width: 30px;
+      text-align: right;
+      margin-right: 10px;
+      font-weight: bold;
+    }
+
+    .leaderboard-country {
+      flex-grow: 1;
+    }
+
+    .leaderboard-score {
+      width: 60px;
+      text-align: right;
+      font-weight: bold;
+    }
+
+    .leaderboard-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Add the country dropdown container -->
+  <div id="country-select-container">
+    <select id="country-select" multiple></select>
+  </div>
+
+  <!-- Add the service buttons container -->
+  <div id="service-buttons-container"></div>
+
+  <div id="p5-sketch"></div>
+
+  <div id="round-display"></div>
+  <div id="control-buttons">
+    <button id="prev-button" class="control-button"><i class="fas fa-step-backward"></i></button>
+    <button id="play-pause-button" class="control-button"><i class="fas fa-play"></i></button>
+    <button id="next-button" class="control-button"><i class="fas fa-step-forward"></i></button>
+    <button id="toggle-changes-button" class="control-button">Show Changes Only</button>
+  </div>
+
+  <div id="leaderboard"></div>
+
+  <script>
+
+    let data;  // For storing the team score data
+    let countriesTable;  // For storing country coordinates from CSV
+    let countryCoordinates = [];  // To store processed country data with coordinates
+    let teams;  // Team names
+    let maxScore = 0;
+    let earth;
+    let globeRadius = 300;
+    let myFont;  // Declare a variable to hold the font
+    let zoom = 0;  // Add a zoom variable
+    let targetZoom = 0;  // Add a target zoom variable for smooth zooming
+    let rotationX = 0;
+    let rotationY = 0;
+    let speed = 0.02;
+    let keys = {};  // Object to store the state of keys
+
+    let interactions = {};
+    let services = [];
+    let serviceColors = {};
+
+    let animationDuration = 60;  // 1 second at 60 FPS
+    let roundUpdateInterval = 300;  // Update round every 300 frames (5 seconds at 60 FPS)
+    let currentRoundIndex = 0;
+    let isPlaying = true;  // Change this to true
+    let framesSinceLastUpdate = 0;
+
+    let selected_countries = []
+
+    let countrySelect;
+    let selected_services = [];
+
+    let animationQuality = 0.001; // Default animation quality
+
+    let showChangesOnly = false;
+
+    let leaderboard = [];
+    let previousLeaderboard = [];
+
+    function preload() {
+      // Load the data from external files
+      data = loadJSON('data.json');
+      countriesTable = loadTable('countries.csv', 'csv', 'header');  // Load the CSV file
+      earth = loadImage('./8k.jpeg');  
+      myFont = loadFont('./SF-Pro-Display-Regular.otf');  // Load a font
+      interactions = loadJSON('all_service_interactions.json', processInteractions);
+    }
+
+    function processCountryData() {
+      teams = Object.keys(data[0]);  // Get team names from the first round
+      countriesTable.rows.forEach((row) => {
+        let name = row.get("name").toLowerCase();  // Shortname in lowercase
+        let lat = row.get("latitude");
+        let lon = row.get("longitude");
+
+        // Match shortName with team names (case-insensitive)
+        teams.forEach(team => {
+          if (team.toLowerCase() === name) {
+            countryCoordinates.push({
+              team: team,
+              lat: parseFloat(lat),
+              lon: parseFloat(lon)
+            });
+          }
+        });
+      });
+
+      // Find the maximum score for scaling the size of the towers
+      for (let round in data) {
+        for (let team in data[round]) {
+          maxScore = max(maxScore, data[round][team]);
+        }
+      }
+
+      //set all countris to selected
+      selected_countries = countryCoordinates.map(country => country.team);
+
+    }
+
+    function processInteractions() {
+      services = Object.keys(interactions);
+      
+      // Sort services alphabetically
+      services.sort((a, b) => a.localeCompare(b));
+      
+      // Generate colors for each service
+      let hueStep = 360 / services.length;
+      services.forEach((service, index) => {
+        serviceColors[service] = color(`hsl(${index * hueStep}, 100%, 50%)`);
+      });
+
+      let processedInteractions = {};
+      for (let service in interactions) {
+        processedInteractions[service] = {};
+        for (let round in interactions[service]) {
+          processedInteractions[service][round] = interactions[service][round].stole_from || [];
+        }
+      }
+      interactions = processedInteractions;
+
+      // Set all services as selected by default
+      selected_services = [...services];
+    }
+
+    let canvas;
+
+    function setup() {
+      canvas = createCanvas(windowWidth, windowHeight, WEBGL);
+      canvas.parent('p5-sketch');
+      processCountryData();
+      frameRate(60);  // Set frame rate to 60 for smooth rendering
+      textFont(myFont);
+
+      // Initialize the Choices.js dropdown
+      countrySelect = new Choices('#country-select', {
+        removeItemButton: true,
+        placeholder: true,
+        placeholderValue: 'Select countries',
+      });
+
+      // Populate the dropdown with country options
+      countryCoordinates.forEach(country => {
+        countrySelect.setChoices([{ value: country.team, label: country.team.charAt(0).toUpperCase() + country.team.slice(1).toLowerCase() }], 'value', 'label', false);
+      });
+
+      // Add event listener for selections
+      document.getElementById('country-select').addEventListener('change', function(event) {
+        selected_countries = countrySelect.getValue().map(item => item.value);
+      });
+
+      // Create service buttons
+      let buttonContainer = document.getElementById('service-buttons-container');
+      services.forEach(service => {
+        let button = document.createElement('button');
+        button.innerText = service;
+        button.className = 'service-button active'; // Add 'active' class to all buttons
+        button.style.backgroundColor = serviceColors[service].toString();
+        button.onclick = () => toggleService(service);
+        buttonContainer.appendChild(button);
+      });
+
+      // Set up control buttons
+      document.getElementById('prev-button').onclick = previousRound;
+      document.getElementById('play-pause-button').onclick = togglePlayPause;
+      document.getElementById('next-button').onclick = nextRound;
+      document.getElementById('toggle-changes-button').onclick = toggleChangesOnly;
+
+      updateRoundDisplay();
+
+      // Add this after processing interactions
+      assignServiceArcHeights();
+
+      // Update the play/pause button to show the pause icon
+      document.getElementById('play-pause-button').innerHTML = '<i class="fas fa-pause"></i>';
+    }
+
+    // Add this new function after setup()
+    function assignServiceArcHeights() {
+      let baseHeight = 0.1;
+      let heightStep = 0.05;
+      services.forEach((service, index) => {
+        serviceColors[service].arcHeight = baseHeight + index * heightStep;
+      });
+    }
+
+    function toggleService(service) {
+      let index = selected_services.indexOf(service);
+      let button = document.querySelector(`.service-button:nth-child(${services.indexOf(service) + 1})`);
+      
+      if (index > -1) {
+        selected_services.splice(index, 1);
+        button.classList.remove('active');
+      } else {
+        selected_services.push(service);
+        button.classList.add('active');
+      }
+    }
+
+    function updateAnimationQuality() {
+        let totalConnections = 0;
+        let currentRound = interactions[currentRoundIndex];
+        let previousRound = currentRoundIndex > 0 ? interactions[currentRoundIndex - 1] : [];
+
+        selected_services.forEach(service => {
+            let currentInteractions = interactions[service][currentRoundIndex];
+            let previousInteractions = currentRoundIndex > 0 ? interactions[service][currentRoundIndex - 1] : [];
+            
+            if (currentInteractions && currentInteractions.length > 0) {
+                currentInteractions.forEach(interaction => {
+                    let [from, to] = interaction.split(':');
+                    if (selected_countries.includes(from) && selected_countries.includes(to)) {
+                        if (!showChangesOnly || !previousInteractions || !previousInteractions.includes(interaction)) {
+                            totalConnections++;
+                        }
+                    }
+                });
+            }
+        });
+
+        // Adjust animation quality based on total connections
+        animationQuality = 0.001 + (totalConnections * 0.0001);
+        animationQuality = constrain(animationQuality, 0.001, 0.03);
+    }
+
+    function draw() {
+      background(51);
+      
+      // Update zoom smoothly
+      zoom = lerp(zoom, targetZoom, 0.1);
+      
+      // Calculate scale factor based on zoom
+      let scaleFactor = 1 / (1 + zoom / 700);  // Reduced the divisor to make the scale factor more noticeable
+
+      // Apply rotation and zoom
+      rotateX(rotationX);
+      rotateY(rotationY);
+      scale(1 + zoom / 1000);
+
+      // Handle continuous key presses
+      if (keys['a'] || keys['A']) rotationY -= speed;
+      if (keys['d'] || keys['D']) rotationY += speed;
+      if (keys['w'] || keys['W']) rotationX -= speed;
+      if (keys['s'] || keys['S']) rotationX += speed;
+
+      // Draw the Earth with high detail
+      noStroke();
+      texture(earth);
+      sphere(globeRadius, 100, 100);  // Use 100 segments for more detail
+
+      if (isPlaying) {
+        framesSinceLastUpdate++;
+        if (framesSinceLastUpdate >= roundUpdateInterval) {
+          nextRound();
+        }
+      }
+
+      let currentRound = data[currentRoundIndex];
+
+      updateAnimationQuality();
+
+      // Replace the existing interaction drawing code with this:
+      selected_services.forEach(service => {
+        let currentInteractions = interactions[service][currentRoundIndex];
+        let previousInteractions = currentRoundIndex > 0 ? interactions[service][currentRoundIndex - 1] : [];
+        
+        if (currentInteractions && currentInteractions.length > 0) {
+          currentInteractions.forEach(interaction => {
+            // Skip this interaction if we're only showing changes and it was present in the previous round
+            if (showChangesOnly && previousInteractions && previousInteractions.includes(interaction)) {
+              return;
+            }
+
+            let [from, to] = interaction.split(':');
+
+            // Draw only selected countries
+            if (!selected_countries.includes(from)) {
+              return;
+            }
+
+            let fromCountry = countryCoordinates.find(country => country.team === from);
+            let toCountry = countryCoordinates.find(country => country.team === to);
+
+            if (fromCountry && toCountry) {
+              let fromPos = latLonToSphere(fromCountry.lat, fromCountry.lon, globeRadius);
+              let toPos = latLonToSphere(toCountry.lat, toCountry.lon, globeRadius);
+
+              // Draw animated arch for connection
+              stroke(serviceColors[service]);
+              noFill();
+              beginShape(POINTS);
+              strokeWeight(3);
+
+              // Calculate the animation progress
+              let animationProgress = min(framesSinceLastUpdate / animationDuration, 1);
+
+              for (let t = 0; t <= animationProgress; t += animationQuality) { // Use animationQuality here
+                let x = lerp(fromPos.x, toPos.x, t);
+                let y = lerp(fromPos.y, toPos.y, t);
+                let z = lerp(fromPos.z, toPos.z, t);
+                let pos = createVector(x, y, z);
+                let archHeight = sin(PI * t) * globeRadius * serviceColors[service].arcHeight;
+                pos.normalize().mult(globeRadius + archHeight);
+
+                vertex(pos.x, pos.y, pos.z);
+              }
+              endShape();
+
+              // Draw moving dot along the arch
+              if (framesSinceLastUpdate < animationDuration) {
+                let t = framesSinceLastUpdate / animationDuration;
+                let x = lerp(fromPos.x, toPos.x, t);
+                let y = lerp(fromPos.y, toPos.y, t);
+                let z = lerp(fromPos.z, toPos.z, t);
+                let pos = createVector(x, y, z);
+                let archHeight = sin(PI * t) * globeRadius * serviceColors[service].arcHeight;
+                pos.normalize().mult(globeRadius + archHeight);
+                
+                push();
+                translate(pos.x, pos.y, pos.z);
+                noStroke();
+                fill(serviceColors[service]);
+                sphere(2 * scaleFactor);
+                pop();
+              }
+            }
+          });
+        }
+      });
+
+      countryCoordinates.forEach(country => {
+      let score = currentRound[country.team];
+      let towerHeight = map(score, 0, maxScore, 10, 20) * scaleFactor;  // Increased tower height range
+      let towerRadius = 3 * scaleFactor;  // Increased tower radius
+
+      let pos = latLonToSphere(country.lat, country.lon, globeRadius);
+
+      push();
+      translate(pos.x, pos.y, pos.z);
+
+      // Get the normal vector for the surface point
+      let direction = createVector(pos.x, pos.y, pos.z).normalize();
+
+      // Align the cylinder along the normal vector of the globe
+      let rotationAxis = createVector(0, 1, 0).cross(direction);
+      let rotationAngle = acos(createVector(0, 1, 0).dot(direction));
+
+      rotate(rotationAngle, rotationAxis);  // Align cylinder to surface normal
+
+      // Reset fill and stroke for the towers
+      noStroke();  // Disable stroke to prevent yellow outline
+      // Color the cylinder based on whether the country is selected or not
+      if (selected_countries.includes(country.team)) {
+        fill(color('rgba(255, 255, 0, 1)'));  // Bright yellow color for selected countries
+      } else {
+        fill(255, 0, 0, 200);  // Red color for non-selected countries
+      }
+      translate(0, towerHeight / 2, 0);  // Move the base of the cylinder to the surface
+      cylinder(towerRadius, towerHeight);  // Draw cylinder for the team
+
+      pop();
+
+      // Display team name near the tower, using reliable billboarding technique
+      push();
+      let textPos = pos.copy().normalize().mult(globeRadius + towerHeight + 30 * scaleFactor);
+      translate(textPos.x, textPos.y, textPos.z);
+
+      // Align the text to always face the viewer (billboarding effect)
+      rotateX(-rotationX);
+      rotateY(-rotationY);
+
+      // Rotate the text 25 degrees to make it lay
+      //rotateY(radians(25));
+      
+
+      fill(255);  // Reset text color to white
+      textSize(12 * scaleFactor);  // Increased text size and made it scale with zoom
+      textAlign(CENTER, CENTER);
+      text(country.team, 0, 0);  // Render text at the country's location
+
+      pop();
+    });
+
+      // Update the leaderboard
+      updateLeaderboard();
+    }
+
+    function keyPressed() {
+      keys[key] = true;
+    }
+
+    function keyReleased() {
+      keys[key] = false;
+    }
+
+    function mouseDragged() {
+      rotationY += (mouseX - pmouseX) * 0.01;
+      rotationX -= (mouseY - pmouseY) * 0.01;
+    }
+
+    // Convert lat/lon to sphere coordinates
+    function latLonToSphere(lat, lon, radius) {
+      let theta = radians(lat); 
+      let phi = radians(lon);
+
+      let x = radius * cos(theta) * sin(phi + PI);
+      let y = -radius * sin(theta);
+      let z = radius * cos(theta) * cos(phi + PI);
+
+      return createVector(x, y, z);
+    }
+
+    // Add this function to handle window resizing
+    function windowResized() {
+      resizeCanvas(windowWidth, windowHeight);
+    }
+
+    // Add mouseWheel function to handle zooming
+    function mouseWheel(event) {
+      targetZoom -= event.delta;
+      targetZoom = constrain(targetZoom, -500, 1500);  // Limit zoom range
+      return false;  // Prevent default scrolling
+    }
+
+    function togglePlayPause() {
+      isPlaying = !isPlaying;
+      let playPauseButton = document.getElementById('play-pause-button');
+      if (isPlaying) {
+        playPauseButton.innerHTML = '<i class="fas fa-pause"></i>';
+      } else {
+        playPauseButton.innerHTML = '<i class="fas fa-play"></i>';
+      }
+    }
+
+    function previousRound() {
+      currentRoundIndex = (currentRoundIndex - 1 + Object.keys(data).length) % Object.keys(data).length;
+      framesSinceLastUpdate = 0;
+      updateRoundDisplay();
+    }
+
+    function nextRound() {
+      currentRoundIndex = (currentRoundIndex + 1) % Object.keys(data).length;
+      framesSinceLastUpdate = 0;
+      updateRoundDisplay();
+    }
+
+    function updateRoundDisplay() {
+      document.getElementById('round-display').innerText = `Round: ${currentRoundIndex + 1}`;
+      updateLeaderboard();
+    }
+
+    function toggleChangesOnly() {
+      showChangesOnly = !showChangesOnly;
+      let button = document.getElementById('toggle-changes-button');
+      button.textContent = showChangesOnly ? 'Show All Interactions' : 'Show Changes Only';
+    }
+
+    function updateLeaderboard() {
+      let currentRound = data[currentRoundIndex];
+      let newLeaderboard = Object.entries(currentRound)
+        .map(([country, score]) => ({
+          country: country.charAt(0).toUpperCase() + country.slice(1).toLowerCase(),
+          score: Math.floor(score)
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      let leaderboardElement = document.getElementById('leaderboard');
+      
+      if (leaderboardElement.children.length === 0) {
+        leaderboardElement.innerHTML = '<div class="leaderboard-title">Top 10 Leaderboard</div>';
+        newLeaderboard.forEach((item, index) => {
+          let itemElement = document.createElement('div');
+          itemElement.className = 'leaderboard-item';
+          itemElement.innerHTML = `
+            <span class="leaderboard-rank">${index + 1}</span>
+            <span class="leaderboard-country">${item.country}</span>
+            <span class="leaderboard-score">${item.score}</span>
+          `;
+          itemElement.style.top = `${index * 35 + 40}px`;
+          leaderboardElement.appendChild(itemElement);
+        });
+      } else {
+        let existingItems = Array.from(leaderboardElement.querySelectorAll('.leaderboard-item'));
+        
+        newLeaderboard.forEach((item, index) => {
+          let existingItem = existingItems.find(el => el.querySelector('.leaderboard-country').textContent === item.country);
+          
+          if (existingItem) {
+            existingItem.querySelector('.leaderboard-rank').textContent = index + 1;
+            existingItem.querySelector('.leaderboard-score').textContent = item.score;
+          } else {
+            let newItem = document.createElement('div');
+            newItem.className = 'leaderboard-item';
+            newItem.innerHTML = `
+              <span class="leaderboard-rank">${index + 1}</span>
+              <span class="leaderboard-country">${item.country}</span>
+              <span class="leaderboard-score">${item.score}</span>
+            `;
+            newItem.style.top = `${index * 35 + 40}px`;
+            newItem.style.opacity = '0';
+            leaderboardElement.appendChild(newItem);
+            existingItems.push(newItem);
+          }
+        });
+        
+        existingItems.forEach(item => {
+          let country = item.querySelector('.leaderboard-country').textContent;
+          let newIndex = newLeaderboard.findIndex(entry => entry.country === country);
+          
+          if (newIndex === -1) {
+            item.style.opacity = '0';
+            setTimeout(() => item.remove(), 500);
+          } else {
+            item.style.top = `${newIndex * 35 + 40}px`;
+            item.style.opacity = '1';
+          }
+        });
+      }
+
+      previousLeaderboard = newLeaderboard;
+    }
+  </script>
+</body>
+</html>
